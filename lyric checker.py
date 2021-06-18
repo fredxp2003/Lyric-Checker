@@ -2,25 +2,29 @@ from tkinter import *
 from tkinter import scrolledtext, filedialog, messagebox
 import webbrowser
 import lyricsgenius
-import version_check
 import os
 import sys
+import requests
+
+# Local Files
+import version_check
+import excel_convert as ex
+import config
 
 
+response = requests.get("https://raw.githubusercontent.com/RobertJGabriel/Google-profanity-words/master/list.txt")
+BAD_WORDS = response.text.splitlines()
 
-#Sorry about this next line :/
-BAD_WORDS = ["BITCH", "ASS", "BASTARD", "SHIT", "FUCK", "COCK", 'CUNT', 'NIGGER', 'NIGGA', 'PENIS', 'PUSSY', 'DICK', 'TIT', 'BOOB', 'THOT', 'HELL', 'DAMN', 'PISS', 'SEX', 'SLUT']
-
-#Information for Genius API.  Removed for open-source.
-key = ""
-secret = ""
-token = "" 
+# Information for Genius API.  Removed for open-source.
+# Enter your API token into config.py
+token = config.token
+genius = lyricsgenius.Genius(token)
 
 def about():
     '''
     Opens a small messagebox with some information
     '''
-    messagebox.showinfo(title="About Lyric Checker", message="Created by Fredxp2003 on Github\n\nFor help, click the help menu option, or go to https://fredxp2003.github.io")
+    messagebox.showinfo(title="About Lyric Checker", message="Version: 1.1-alpha (This is not a stable release)\nCreated by Fredxp2003 on Github\n\nFor help, click the help menu option, or go to https://fredxp2003.github.io")
     
 def help():
     '''
@@ -28,9 +32,9 @@ def help():
     '''
     webbrowser.open('https://fredxp2003.github.io', new=2)
 
-#Iterated through each word that would be flagged as explicit
-#Change the first and last letter of each word to a '*'
-#Output the changed word
+# Iterated through each word that would be flagged as explicit
+# Change the first and last letter of each word to a '*'
+# Output the changed word
 def censor(word):
     try:
         for letters in word:
@@ -71,12 +75,21 @@ def file_save():
     f.close() # `()` was missing.
 
 def group_check():
-    text_file = filedialog.askopenfile(title = "Select file", filetypes = (("Compatible files","*.txt *.csv"), ("All files", "*.*")))
+    bad_songs = []
+    excel = False
+    text_file = filedialog.askopenfile(title = "Select file", filetypes = (("Compatible files","*.txt *.csv *.xlsx"), ("All files", "*.*")))
     name = os.path.basename(text_file.name)
+    path = os.path.realpath(text_file.name)
     if text_file is None:
         return
     run = True
     output.delete("1.0", END)
+    if ".xlsx" in name:
+        text_file.close()
+        ex.convert(path)
+        text_file = open("converted.csv", "r")
+        name = "converted.csv"
+        excel = True
     while run is True:
         line = text_file.readline()
         print(line)
@@ -84,15 +97,19 @@ def group_check():
         if "\n" in line:
             run = True
             separator = "-"
+            if ".csv" in name:
+                separator = ","
             title, artist = line.split(separator)
             print(f"{title} - {artist}")
             search = genius.search_song(title, artist)
             if search != None:
                 lyrics = search.lyrics
                 for word in BAD_WORDS:
-                    if word in lyrics.upper():
+                    if word in lyrics.lower():
                         censor(word)
                         clean = False
+                        if f'{title} - {artist}' not in bad_songs:
+                            bad_songs.append(f'{title} - {artist}')
                 if clean == True:
                     output.insert(INSERT, f"[{search.full_title}]  |  ")
                     output.insert(INSERT, "THIS SONG IS CLEAN!\n\n")
@@ -102,30 +119,49 @@ def group_check():
             output.insert(INSERT, f"{lyrics}\n--------------------------------------\n")
 
         else:
-            run = False
-            separator = "-"
-            title, artist = line.split(separator)
-            print(f"{title} - {artist}")
-            search = genius.search_song(title, artist)
-            if search != None:
-                lyrics = search.lyrics
-                for word in BAD_WORDS:
-                    if word in lyrics.upper():
-                        censor(word)
-                        
-                        clean = False
-                if clean == True:
-                    output.insert(INSERT, f"[{search.full_title}]  |  ")
-                    output.insert(INSERT, "THIS SONG IS CLEAN!\n\n")
+            if line == "":
+                output.insert(INSERT, f"{lyrics}\n\n")
+                messagebox.showinfo(title="Complete", message="Lyrics found.")
+                if len(bad_songs) > 0:
+                    messagebox.showwaring(title="Uh oh...", message=f"{len(bad_songs)} songs(s) contain profanity.\n{bad_songs}")
+                
+                if excel:
+                    text_file.close()
+                    os.remove(name)
+                break       
+                
             else:
-                output.insert(INSERT, f"No results found. for {title} - {artist}")
-            
+                run = False
+                separator = "-"
+                if ".csv" in name:
+                    separator = ","
+                title, artist = line.split(separator)
+                print(f"{title} - {artist}")
+                search = genius.search_song(title, artist)
+                if search != None:
+                    lyrics = search.lyrics
+                    for word in BAD_WORDS:
+                        if word in lyrics.lower():
+                            censor(word)
+                            
+                            clean = False
+                            if f'{title} - {artist}' not in bad_songs:
+                                bad_songs.append(f'{title} - {artist}')
+                    if clean == True:
+                        output.insert(INSERT, f"[{search.full_title}]  |  ")
+                        output.insert(INSERT, "THIS SONG IS CLEAN!\n\n")
+                else:
+                    output.insert(INSERT, f"No results found. for {title} - {artist}")
             output.insert(INSERT, f"{lyrics}\n\n")
             messagebox.showinfo(title="Complete", message="Lyrics found.")
-            break
-        
+            if len(bad_songs) > 0:
+                messagebox.showwarning(title="Uh oh...", message=f"{len(bad_songs)} songs(s) are bad.\n{bad_songs}")
+            
+            if excel:
+                text_file.close()
+                os.remove(name)
+            break     
 
-genius = lyricsgenius.Genius(token)
 def profanity_check():
     output.delete(1.0,END)
     clean = True
@@ -140,7 +176,7 @@ def profanity_check():
         if search != None:
             lyrics = search.lyrics
             for word in BAD_WORDS:
-                if word in lyrics.upper():
+                if word in lyrics.lower():
                     censor(word)
                     clean = False
             if clean == True:
