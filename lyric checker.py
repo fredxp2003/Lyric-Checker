@@ -35,7 +35,7 @@ def censor(word):
     try:
         for letters in word:
             if(word == "ASS"):
-                word = "A**S"
+                word = "A*S"
             elif(letters == word[0] or letters == word[-1]):
                 pass
             else:
