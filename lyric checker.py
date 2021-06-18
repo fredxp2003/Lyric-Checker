@@ -28,50 +28,21 @@ def help():
     '''
     webbrowser.open('https://fredxp2003.github.io', new=2)
 
+#Iterated through each word that would be flagged as explicit
+#Change the first and last letter of each word to a '*'
+#Output the changed word
 def censor(word):
-    '''
-    Censors the output... really sorry about this part too.
-    '''
-    if word == "FUCK":
-        output.insert(INSERT, "CONTAINS: \"F**K\".\n\n")
-
-    elif word == "SHIT":
-        output.insert(INSERT, "CONTAINS: \"S**T\".\n\n")
-
-    elif word == "BITCH":
-        output.insert(INSERT, "CONTAINS: \"B***H\".\n\n")
-
-    elif word == "ASS":
-        output.insert(INSERT, "CONTAINS: \"A**\".\n\n")
-
-    elif word == "BASTARD":
-        output.insert(INSERT, "CONTAINS: \"B*****D\".\n\n")
-    
-    elif word == "COCK":
-        output.insert(INSERT, "CONTAINS: \"C**K\".\n\n")
-        
-    elif word == "CUNT":
-        output.insert(INSERT, "CONTAINS: \"C**T\".\n\n")
-
-    elif word == "NIGGA":
-        output.insert(INSERT, "CONTAINS: \"N***A\".\n\n")
-
-    elif word == "NIGGER":
-        output.insert(INSERT, "CONTAINS: \"N****R\"\n\n")
-
-    elif word == "DICK":
-        output.insert(INSERT, "CONTAINS: \"D**K\".\n\n")
-    
-    elif word == "PUSSY":
-        output.insert(INSERT, "CONTAINS: \"P***Y\".\n\n")
-    
-    elif word == "PISS":
-        output.insert(INSERT, "CONTAINS: \"P**S\".\n\n")
-    
-    elif word == "TIT":
-        output.insert(INSERT, "CONTAINS: \"T*T\".\n\n")
-
-    else:
+    try:
+        for letters in word:
+            if(word == "ASS"):
+                word = "A*S"
+            elif(letters == word[0] or letters == word[-1]):
+                pass
+            else:
+                word = word.replace(word[word.index(letters)], "*")
+    except:
+        pass
+    finally:
         output.insert(INSERT, f"CONTAINS: \"{word}\".\n\n")
 
 
