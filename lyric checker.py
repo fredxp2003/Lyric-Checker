@@ -14,19 +14,20 @@ import config
 
 response = requests.get("https://raw.githubusercontent.com/RobertJGabriel/Google-profanity-words/master/list.txt")
 BAD_WORDS = response.text.splitlines()
+BAD_WORDS.remove("nob")
+BAD_WORDS = [w.replace("ass", " ass") for w in BAD_WORDS]
 
 # Information for Genius API.  Removed for open-source.
 # Enter your API token into config.py
 token = config.token
 genius = lyricsgenius.Genius(token)
 
-def about():
+def about(event = None):
     '''
     Opens a small messagebox with some information
     '''
-    messagebox.showinfo(title="About Lyric Checker", message="Version: 1.1-alpha (This is not a stable release)\nCreated by Fredxp2003 on Github\n\nFor help, click the help menu option, or go to https://fredxp2003.github.io")
+    messagebox.showinfo(title="About Lyric Checker", message="Version: 1.1-beta (This is not a stable release)\nCreated by Fredxp2003 on Github\n\nFor help, click the help menu option, or go to https://fredxp2003.github.io")
     
-def help():
     '''
     Opens help website
     '''
@@ -38,8 +39,8 @@ def help():
 def censor(word):
     try:
         for letters in word:
-            if(word == "ASS"):
-                word = "A*S"
+            if(word == " ass"):
+                word = "a*s"
             elif(letters == word[0] or letters == word[-1]):
                 pass
             else:
@@ -51,7 +52,7 @@ def censor(word):
 
 
 
-def file_open():
+def file_open(event = None):
     text_file = filedialog.askopenfile(title = "Select file", filetypes = (("Text files","*.txt"), ("All files", "*.*")))
     print(text_file)
 
@@ -62,7 +63,7 @@ def file_open():
     output.insert(END, stuff)
     text_file.close()
 
-def file_save():
+def file_save(event = None):
     f = filedialog.asksaveasfile(title = "Select file",filetypes = (("Text files","*.txt"), ("All files", "*.*")))
 
     if f is None: # asksaveasfile return `None` if dialog closed with "cancel".
@@ -74,7 +75,7 @@ def file_save():
         messagebox.showerror(title="Failed to save", message="Was unable to save this file.")
     f.close() # `()` was missing.
 
-def group_check():
+def group_check(event = None):
     bad_songs = []
     excel = False
     text_file = filedialog.askopenfile(title = "Select file", filetypes = (("Compatible files","*.txt *.csv *.xlsx"), ("All files", "*.*")))
@@ -193,21 +194,28 @@ def profanity_check():
 #TKINTER SETUP
 window = Tk()
 
-window.title("Lyric Checker")
+window.title("Lyric Checker | v1.1-beta")
 my_menu = Menu(window)
 window.config(menu=my_menu)
 
 #MENUS
 file_menu = Menu(my_menu)
 my_menu.add_cascade(label="File", menu=file_menu)
-file_menu.add_command(label="Open...", command=file_open)
-file_menu.add_command(label="Save as...", command=file_save)
-file_menu.add_command(label="Group check...", command = group_check)
+file_menu.add_command(label="Open   (CTRL + O)", command=file_open)
+file_menu.add_command(label="Save as   (CTRL + S)", command=file_save)
+file_menu.add_command(label="Group check   (CTRL + G)", command = group_check)
 file_menu.add_separator()
-file_menu.add_command(label="About...", command=about)
-file_menu.add_command(label="Help...", command=help)
+file_menu.add_command(label="About   (CTRL + A)", command=about)
+file_menu.add_command(label="Help   (CTRL + H)", command=help)
 file_menu.add_separator()
 file_menu.add_command(label="Exit", command=window.quit)
+
+#KEYBINDS
+window.bind("<Control-o>", file_open)
+window.bind("<Control-s>", file_save)
+window.bind("<Control-g>", group_check)
+window.bind("<Control-a>", about)
+window.bind("<Control-h>", help)
 
 #LABELS
 song_label = Label(window, text='Song:')
