@@ -15,6 +15,16 @@ import version_check
 import excel_convert as ex
 import logger
 
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
 
 response = requests.get("https://raw.githubusercontent.com/RobertJGabriel/Google-profanity-words/master/list.txt")
 BAD_WORDS = response.text.splitlines()
@@ -24,23 +34,18 @@ BAD_WORDS = [w.replace("ass", " ass") for w in BAD_WORDS]
 BAD_WORDS = [w.replace("cum", " cum") for w in BAD_WORDS]
 BAD_WORDS = [w.replace("cums", " cums") for w in BAD_WORDS]
 
-
-
-
-# This is where you should add your Genius API token.  
-# For security purposes, I have taken my personal token out of the Github release.
-
 token = "" # Genius API token
-CLIENT_ID = '' #  Spotify API ID
-CLIENT_SECRET = '' # Spotify API Secret
-numbers = string.digits
+CLIENT_ID = ''
+CLIENT_SECRET = ''
+
+
 genius = lyricsgenius.Genius(token)
 
 def about(event = None):
     '''
     Opens a small messagebox with some information
     '''
-    messagebox.showinfo(title="About Lyric Checker", message="Version: 1.1-beta (This is not a stable release)\nCreated by Fredxp2003 on Github\n\nFor help, click the help menu option, or go to https://fredxp2003.github.io")
+    messagebox.showinfo(title="About Lyric Checker", message="Version: 1.1\nCreated by Fredxp2003 on Github\n\nFor help, click the help menu option, or go to https://fredxp2003.github.io")
 def help(event = None):
     '''
     Opens help website
@@ -369,7 +374,7 @@ def sp_profanity_check():
 #TKINTER SETUP
 window = Tk()
 
-window.title("Lyric Checker | v1.1-beta")
+window.title("Lyric Checker | v1.1")
 my_menu = Menu(window)
 window.config(menu=my_menu)
 
