@@ -1,5 +1,6 @@
 from tkinter import *
 from tkinter import scrolledtext, filedialog, messagebox, ttk
+from ttkthemes import ThemedTk, ThemedStyle
 import webbrowser
 import lyricsgenius
 import os
@@ -30,6 +31,7 @@ response = requests.get("https://raw.githubusercontent.com/RobertJGabriel/Google
 BAD_WORDS = response.text.splitlines()
 BAD_WORDS.remove("nob")
 BAD_WORDS.remove("spac")
+BAD_WORDS.remove("turd")
 BAD_WORDS = [w.replace("ass", " ass") for w in BAD_WORDS]
 BAD_WORDS = [w.replace("cum", " cum") for w in BAD_WORDS]
 BAD_WORDS = [w.replace("cums", " cums") for w in BAD_WORDS]
@@ -38,6 +40,7 @@ token = "" # Genius API token
 CLIENT_ID = ''
 CLIENT_SECRET = ''
 
+numbers = string.digits
 
 genius = lyricsgenius.Genius(token)
 
@@ -102,7 +105,7 @@ def group_check(event = None):
     bad_songs = []
     excel = False
     try:
-        text_file = filedialog.askopenfile(title = "Select file", filetypes = (("Compatible files","*.txt *.csv *.xlsx"), ("All files", "*.*")))
+        text_file = filedialog.askopenfile(title = "Select file", filetypes = (("Compatible files","*.txt *.csv *.xlsx *.rtf"), ('Text files', '*.txt'), ('Comma Separated Values files', '*.csv'), ('Excel files', '*.xlsx'), ('Rich Text File', '*.rtf'), ("All files", "*.*")))
     except Exception as e:
         messagebox.showerror(f"Unable to read file", f"Unable to read file.\n\nPlease make sure that the file is not currently open in a program such as Excel.")
         logger.log(f"Unable to save file.  Error: {e}", 2)
@@ -160,7 +163,7 @@ def group_check(event = None):
                 output.insert(INSERT, f"{lyrics}\n--------------------------------------\n")
             else:
                 output.insert(INSERT, f"No results found for {title} - {artist}\n--------------------------------------\n")
-            
+            window.update_idletasks()
 
         else:
             if line == "":
@@ -201,7 +204,10 @@ def group_check(event = None):
                         output.insert(INSERT, "THIS SONG IS CLEAN!\n\n")
                 else:
                     output.insert(INSERT, f"No results found. for {title} - {artist}")
+                
             output.insert(INSERT, f"{lyrics}\n\n")
+            window.update_idletasks()
+
             messagebox.showinfo(title="Complete", message="Lyrics found.")
             if len(bad_songs) > 0:
                 messagebox.showwarning(title="Uh oh...", message=f"{len(bad_songs)} songs(s) are bad.\n{bad_songs}")
@@ -249,17 +255,22 @@ def spotify_window(entry=None):
     '''
     global spwindow
     spwindow = Tk()
+    style = ThemedStyle(spwindow) 
+    style.theme_use(theme)
+    bg = style.lookup('TLabel', 'background')
+    spwindow.configure(bg=bg)
+    
 
     spwindow.title("Lyric Checker | Spotify")
 
     #LABELS
-    playlist_label = Label(spwindow, text='Playlist URI:')
+    playlist_label = ttk.Label(spwindow, text='Playlist URI:')
     playlist_label.grid(column=0, row=0)
 
-    url = Entry(spwindow, width=60) #song entry field
+    url = ttk.Entry(spwindow, width=60) #song entry field
     url.grid(column=1, row=0)
 
-    search = Button(spwindow, text="Search",command=lambda: spotify(url.get()))
+    search = ttk.Button(spwindow, text="Search",command=lambda: spotify(url.get()))
     search.grid(column=2, row=0)
 
     spwindow.mainloop()
@@ -269,6 +280,7 @@ def spotify(uri):
     '''
     Spotify integration is planned for 1.2 release.
     '''
+    spwindow.quit()
     auth_manager = SpotifyClientCredentials(client_id=CLIENT_ID, client_secret=CLIENT_SECRET)
     sp = spotipy.Spotify(auth_manager=auth_manager)
 
@@ -294,9 +306,7 @@ def spotify(uri):
     sp_profanity_check()
 
 def sp_profanity_check():
-    '''
-    Spotify integration is planned for 1.2 release.
-    '''
+    
     bad_songs = []
     text_file = open("output.txt", "r")
     name = os.path.basename(text_file.name)
@@ -360,23 +370,46 @@ def sp_profanity_check():
                         output.insert(INSERT, "THIS SONG IS CLEAN!\n\n")
                 else:
                     output.insert(INSERT, f"No results found. for {title} - {artist}")
-            output.insert(INSERT, f"{lyrics}\n\n")
-            messagebox.showinfo(title="Complete", message="Lyrics found.")
             if len(bad_songs) > 0:
                 messagebox.showwarning(title="Uh oh...", message=f"{len(bad_songs)} songs(s) are bad.\n{bad_songs}")
             
             spwindow.quit()
             break     
 
-
-
+def theme_changer():
+    twindow = Tk()
+    style = ThemedStyle(twindow) 
+    style.theme_use(theme)
+    bg = style.lookup('TLabel', 'background')
+    twindow.configure(bg=bg)
+    theme_choice = ""
+    themes = ["black", 'arc', 'yaru', 'adapta', 'aquativo', 'breeze', 'clearlooks', 'equilux', 'radiance', 'ubuntu','classic', 'vista']
+    combo = ttk.Combobox(twindow, textvariable=theme_choice, values=themes, state='readonly')
+    combo.grid(column=0, row=0)
+    def restart():
+        f = open('theme', 'w')
+        f.write(combo.get())
+        window.destroy()
+        twindow.destroy()
+        os.startfile("lyric_checker.exe")
+    button = ttk.Button(twindow, text="Submit", command = restart)
+    button.grid(column=1, row=0)
 
 #TKINTER SETUP
 window = Tk()
+style = ThemedStyle(window)
+f = open('theme', 'r')
+theme = f.readline()
+f.close()
+style.theme_use(theme)  
 
-window.title("Lyric Checker | v1.1")
+
+window.title("Lyric Checker | v1.2-alpha")
 my_menu = Menu(window)
 window.config(menu=my_menu)
+bg = style.lookup('TLabel', 'background')
+fg = style.lookup('TLabel', 'foreground')
+window.configure(bg=bg)
 
 #MENUS
 file_menu = Menu(my_menu)
@@ -384,9 +417,10 @@ my_menu.add_cascade(label="File", menu=file_menu)
 file_menu.add_command(label="Open   (CTRL + O)", command=file_open)
 file_menu.add_command(label="Save as   (CTRL + S)", command=file_save)
 file_menu.add_command(label="Group check   (CTRL + G)", command = group_check)
-#file_menu.add_command(label="Search with Spotify", command = spotify_window)
+file_menu.add_command(label="Search with Spotify", command = spotify_window)
 file_menu.add_separator()
 file_menu.add_command(label="About", command=about)
+file_menu.add_command(label="Change theme", command=theme_changer)
 file_menu.add_command(label="Help   (CTRL + H)", command=help)
 file_menu.add_separator()
 file_menu.add_command(label="Exit", command=window.quit)
@@ -398,16 +432,16 @@ window.bind("<Control-g>", group_check)
 window.bind("<Control-h>", help)
 
 #LABELS
-song_label = Label(window, text='Song:')
+song_label = ttk.Label(window, text='Song:')
 song_label.grid(column=0, row=1)
 
-artist_label = Label(window, text='Artist:')
+artist_label = ttk.Label(window, text='Artist:')
 artist_label.grid(column=0, row=2)
 '''
 censor_label = Label(window, text='Censor output?')
 censor_label.grid(column=0, row=3)
 '''
-search = Button(window, text="Search",command=profanity_check)
+search = ttk.Button(window, text="Search",command=profanity_check)
 search.grid(column=2, row=2)
 
 var = IntVar()
@@ -416,14 +450,14 @@ censor_bool.grid(column=2, row=3)
 censor_bool.configure(state="selected")
 
 
-song = Entry(window, width=60) # Song entry field
+song = ttk.Entry(window, width=60) # Song entry field
 song.grid(column=1, row=1)
 
 
-artist = Entry(window, width=60) # Artist entry field
+artist = ttk.Entry(window, width=60) # Artist entry field
 artist.grid(column=1, row=2)
 global output
-output = scrolledtext.ScrolledText(window, width=100, height=20) # Where the results will be shown.
+output = scrolledtext.ScrolledText(window, width=100, height=20,bg = style.lookup('TLabel', 'background'),fg = style.lookup('TLabel', 'foreground'), font = ('Trebuchet MS', 14)) # Where the results will be shown.
 output.grid(column=0, row=4, columnspan=3)
 
 window.mainloop()
