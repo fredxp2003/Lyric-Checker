@@ -1,5 +1,5 @@
-from tkinter import *
-from tkinter import scrolledtext, filedialog, messagebox, ttk
+from tkinter import * 
+from tkinter import scrolledtext, filedialog, messagebox, ttk, font
 from ttkthemes import ThemedTk, ThemedStyle
 import webbrowser
 import lyricsgenius
@@ -9,14 +9,48 @@ import requests
 import string
 from spotipy.oauth2 import SpotifyClientCredentials
 import spotipy
+from PIL import ImageTk, Image
+from configparser import ConfigParser
+import threading
+
+
+### THE SPLASH SCREEN
+splash = Tk()
+splash.geometry = "550x300"
+splash.iconbitmap = "lyric checker.ico"
+img = ImageTk.PhotoImage(Image.open("splash.jpg"))
+splash_screen = Label(splash, image=img)
+splash_screen.grid()
+splash.overrideredirect(True)
+splash.eval('tk::PlaceWindow . center') # Starts splash screen in the middle of the monitor.
+splash.update_idletasks()
+
+def splashfade():
+    '''Adds a really nice fade out effect to the window.'''
+    alpha = splash.attributes("-alpha")
+    if alpha > 0:
+        alpha -= .001
+        splash.attributes("-alpha", alpha)
+        splash.after(1, splashfade)
+    else:
+        splash.destroy()
+        main_window()
 
 
 # Local Files
-import version_check
-import excel_convert as ex
-import logger
+import version_check # Checks current version
+import excel_convert as ex # Allows to convert excel files to .csv files
+import logger # Creates logs under lyricchecker.log
+import cleaner # For the Spotify function.  Cleans up song names and extracts the URI from the URL
 
-def resource_path(relative_path):
+# Read config file
+parser = ConfigParser()
+parser.read("config.ini")
+saved_theme = parser.get('settings', 'theme')
+saved_font = parser.get('settings', 'font')
+saved_font_size = parser.get('settings', 'font_size')
+
+def resource_path(relative_path):  # Idk, auto-py-to-exe told me to put this here
     """ Get absolute path to resource, works for dev and for PyInstaller """
     try:
         # PyInstaller creates a temp folder and stores path in _MEIPASS
@@ -36,9 +70,10 @@ BAD_WORDS = [w.replace("ass", " ass") for w in BAD_WORDS]
 BAD_WORDS = [w.replace("cum", " cum") for w in BAD_WORDS]
 BAD_WORDS = [w.replace("cums", " cums") for w in BAD_WORDS]
 
+
 token = "" # Genius API token
-CLIENT_ID = ''
-CLIENT_SECRET = ''
+CLIENT_ID = '' # Spotify API ID
+CLIENT_SECRET = '' # Spotify API Secret
 
 numbers = string.digits
 
@@ -48,7 +83,8 @@ def about(event = None):
     '''
     Opens a small messagebox with some information
     '''
-    messagebox.showinfo(title="About Lyric Checker", message="Version: 1.1\nCreated by Fredxp2003 on Github\n\nFor help, click the help menu option, or go to https://fredxp2003.github.io")
+    messagebox.showinfo(title="About Lyric Checker", message="Version: 1.2-beta\nNOT A STABLE RELEASE\nCreated by Fredxp2003 on Github\n\nFor help, click the help menu option, or go to https://fredxp2003.github.io")
+
 def help(event = None):
     '''
     Opens help website
@@ -254,7 +290,7 @@ def spotify_window(entry=None):
     Spotify integration is planned for 1.2 release.
     '''
     global spwindow
-    spwindow = Tk()
+    spwindow = Toplevel()
     style = ThemedStyle(spwindow) 
     style.theme_use(theme)
     bg = style.lookup('TLabel', 'background')
@@ -263,15 +299,20 @@ def spotify_window(entry=None):
 
     spwindow.title("Lyric Checker | Spotify")
 
+    img = ImageTk.PhotoImage(Image.open("spotify.png"))
+    canvas = Canvas(spwindow, width=826, height=250, bg=style.lookup('TLabel', 'background'))
+    canvas.create_image(420, 125, image=img)
+    canvas.grid(column=0, row=0, columnspan=3)
+
     #LABELS
     playlist_label = ttk.Label(spwindow, text='Playlist URI:')
-    playlist_label.grid(column=0, row=0)
+    playlist_label.grid(column=0, row=1)
 
     url = ttk.Entry(spwindow, width=60) #song entry field
-    url.grid(column=1, row=0)
+    url.grid(column=1, row=1)
 
     search = ttk.Button(spwindow, text="Search",command=lambda: spotify(url.get()))
-    search.grid(column=2, row=0)
+    search.grid(column=2, row=1)
 
     spwindow.mainloop()
 
@@ -280,7 +321,8 @@ def spotify(uri):
     '''
     Spotify integration is planned for 1.2 release.
     '''
-    spwindow.quit()
+    uri = cleaner.url_cleanup(uri)
+    spwindow.destroy()
     auth_manager = SpotifyClientCredentials(client_id=CLIENT_ID, client_secret=CLIENT_SECRET)
     sp = spotipy.Spotify(auth_manager=auth_manager)
 
@@ -294,12 +336,7 @@ def spotify(uri):
             item['track']['artists'][0]['name']
         )
         song = item['track']['name']
-        if "-" in song:
-            song = song.replace("- Remastered","")
-            song = song.replace("-", "")
-            for number in numbers:
-                if number in song:
-                    song = song.replace(number,"")
+        song = cleaner.cleanup(song)
 
         f.write(f"{song} - {item['track']['artists'][0]['name']}\n")
     f.close()
@@ -346,6 +383,7 @@ def sp_profanity_check():
                 messagebox.showinfo(title="Complete", message="Lyrics found.")
                 if len(bad_songs) > 0:
                     messagebox.showwarning(title="Uh oh...", message=f"{len(bad_songs)} songs(s) contain profanity.\n{bad_songs}")   
+                break
                 
             else:
                 run = False
@@ -376,89 +414,157 @@ def sp_profanity_check():
             spwindow.quit()
             break     
 
-def theme_changer():
-    twindow = Tk()
-    style = ThemedStyle(twindow) 
+def preferences(entry=None):
+    '''Allows the user to change some settings.'''
+    # PREFERENCE WINDOW SETUP
+    pwindow = Tk()
+    pwindow.title("Preferences | Lyric Checker v1.2-beta")
+    style = ThemedStyle(pwindow) 
     style.theme_use(theme)
     bg = style.lookup('TLabel', 'background')
-    twindow.configure(bg=bg)
-    theme_choice = ""
-    themes = ["black", 'arc', 'yaru', 'adapta', 'aquativo', 'breeze', 'clearlooks', 'equilux', 'radiance', 'ubuntu','classic', 'vista']
-    combo = ttk.Combobox(twindow, textvariable=theme_choice, values=themes, state='readonly')
-    combo.grid(column=0, row=0)
+    pwindow.configure(bg=bg)
+
+    themes = ["black", 'arc', 'yaru', 'adapta', 'aquativo', 'breeze', 'clearlooks', 'equilux', 'radiance', 'ubuntu','classic', 'vista'] # List of all compatable themes
+    fonts=list(font.families()) # All Tkinter fonts
+
+    theme_label = ttk.Label(pwindow, text='Theme:') # Label so that preference screen is more understandable
+    theme_label.grid(column=0, row=0)
+
+    theme_choices = ttk.Combobox(pwindow, values=themes, state='readonly') # Theme selector
+    theme_choices.current(0) # Default theme is "black"
+    theme_choices.grid(column=1, row=0)
+
+    font_label = ttk.Label(pwindow, text='Font:') # Label so that preference screen is more understandable
+    font_label.grid(column=0, row=1)
+
+    font_choices = ttk.Combobox(pwindow, values = fonts, state='read-only')
+    font_choices.current(0)
+    font_choices.grid(column=1, row = 1)
+
+    font_size_label = ttk.Label(pwindow, text='Font Size:') # Label so that preference screen is more understandable
+    font_size_label.grid(column=0, row=2)
+
+    font_size = ttk.Entry(pwindow, width = 4)
+    font_size.grid(column=1, row=2)
+    font_size.insert(INSERT, '14')
+
+
     def restart():
-        f = open('theme', 'w')
-        f.write(combo.get())
+        '''I'm not really sure '''
+        ask = messagebox.askokcancel("Restart?", "To apply changes, the program will need to restart.  Okay to restart?")
+        if not ask:
+            pwindow.destroy()
+            return
+        parser = ConfigParser()
+        parser.read('config.ini')
+        parser.set('settings', 'theme', theme_choices.get())
+        parser.set('settings', 'font', font_choices.get())
+        parser.set('settings', 'font_size', font_size.get())
+        
+        with open('config.ini', 'w') as configfile:
+            parser.write(configfile)
+
         window.destroy()
-        twindow.destroy()
-        os.startfile("lyric_checker.exe")
-    button = ttk.Button(twindow, text="Submit", command = restart)
-    button.grid(column=1, row=0)
+        pwindow.destroy()
+        os.startfile("lyric_checker.py")
+    button = ttk.Button(pwindow, text="Submit", command = restart)
+    button.grid(column=2, row=2)
 
-#TKINTER SETUP
-window = Tk()
-style = ThemedStyle(window)
-f = open('theme', 'r')
-theme = f.readline()
-f.close()
-style.theme_use(theme)  
+def quit():
+    fade_away()
 
-
-window.title("Lyric Checker | v1.2-alpha")
-my_menu = Menu(window)
-window.config(menu=my_menu)
-bg = style.lookup('TLabel', 'background')
-fg = style.lookup('TLabel', 'foreground')
-window.configure(bg=bg)
-
-#MENUS
-file_menu = Menu(my_menu)
-my_menu.add_cascade(label="File", menu=file_menu)
-file_menu.add_command(label="Open   (CTRL + O)", command=file_open)
-file_menu.add_command(label="Save as   (CTRL + S)", command=file_save)
-file_menu.add_command(label="Group check   (CTRL + G)", command = group_check)
-file_menu.add_command(label="Search with Spotify", command = spotify_window)
-file_menu.add_separator()
-file_menu.add_command(label="About", command=about)
-file_menu.add_command(label="Change theme", command=theme_changer)
-file_menu.add_command(label="Help   (CTRL + H)", command=help)
-file_menu.add_separator()
-file_menu.add_command(label="Exit", command=window.quit)
-
-#KEYBINDS
-window.bind("<Control-o>", file_open)
-window.bind("<Control-s>", file_save)
-window.bind("<Control-g>", group_check)
-window.bind("<Control-h>", help)
-
-#LABELS
-song_label = ttk.Label(window, text='Song:')
-song_label.grid(column=0, row=1)
-
-artist_label = ttk.Label(window, text='Artist:')
-artist_label.grid(column=0, row=2)
-'''
-censor_label = Label(window, text='Censor output?')
-censor_label.grid(column=0, row=3)
-'''
-search = ttk.Button(window, text="Search",command=profanity_check)
-search.grid(column=2, row=2)
-
-var = IntVar()
-censor_bool = ttk.Checkbutton(window, text="Censor output?", variable = var)
-censor_bool.grid(column=2, row=3)
-censor_bool.configure(state="selected")
+def fade_away():
+    alpha = window.attributes("-alpha")
+    if alpha > 0:
+        alpha -= .004
+        window.attributes("-alpha", alpha)
+        window.after(1, fade_away)
+    else:
+        window.destroy()
 
 
-song = ttk.Entry(window, width=60) # Song entry field
-song.grid(column=1, row=1)
 
 
-artist = ttk.Entry(window, width=60) # Artist entry field
-artist.grid(column=1, row=2)
-global output
-output = scrolledtext.ScrolledText(window, width=100, height=20,bg = style.lookup('TLabel', 'background'),fg = style.lookup('TLabel', 'foreground'), font = ('Trebuchet MS', 14)) # Where the results will be shown.
-output.grid(column=0, row=4, columnspan=3)
+def main_window():
+    #TKINTER SETUP
+    global window
+    global artist
+    global song
+    global var
+    global censor_bool
+    global theme
+    window = Tk()
+    style = ThemedStyle(window)
+    theme = saved_theme
+    style.theme_use(theme)  
 
-window.mainloop()
+    window.title("Lyric Checker | v1.2-beta")
+    window.iconbitmap("lyric checker.ico")
+    my_menu = Menu(window)
+    window.config(menu=my_menu)
+    bg = style.lookup('TLabel', 'background')
+    fg = style.lookup('TLabel', 'foreground')
+    window.configure(bg=bg)
+    window.resizable(0, 0)
+    window.protocol("WM_DELETE_WINDOW", quit)
+
+
+    #MENUS
+    file_menu = Menu(my_menu)
+    my_menu.add_cascade(label="File", menu=file_menu)
+    file_menu.add_command(label="Open   (CTRL + O)", command=file_open)
+    file_menu.add_command(label="Save as   (CTRL + S)", command=file_save)
+    file_menu.add_command(label="Group check   (CTRL + G)", command = group_check)
+    file_menu.add_command(label="Search with Spotify", command = spotify_window)
+    
+    file_menu.add_separator()
+    file_menu.add_command(label="About", command=about)
+    file_menu.add_command(label="Preferences   (CTRL + .)", command=preferences)
+    file_menu.add_command(label="Help   (CTRL + H)", command=help)
+    file_menu.add_separator()
+    file_menu.add_command(label="Exit", command=quit)
+
+    #KEYBINDS
+    window.bind("<Control-o>", file_open)
+    window.bind("<Control-s>", file_save)
+    window.bind("<Control-g>", group_check)
+    window.bind("<Control-h>", help)
+    window.bind("<Control-.>", preferences)
+        
+    #LABELS
+    song_label = ttk.Label(window, text='Song:', font=(saved_font, int(saved_font_size)))
+    song_label.grid(column=0, row=1)
+
+    artist_label = ttk.Label(window, text='Artist:', font=(saved_font, int(saved_font_size)))
+    artist_label.grid(column=0, row=2)
+
+    censor_label = ttk.Label(window, text='Censor output?', font=(saved_font, int(saved_font_size)))
+    censor_label.grid(column=0, row=3)
+    
+    #BUTTON
+    s = ttk.Style()
+    s.configure('my.TButton', anchor = CENTER, font=(saved_font, int(saved_font_size)))
+    search = ttk.Button(window, text="Search",command=profanity_check, style='my.TButton')
+    search.grid(column=2, row=2)
+
+    var = IntVar()
+    censor_bool = ttk.Checkbutton(window, variable = var)
+    censor_bool.grid(column=2, row=3)
+    censor_bool.configure(state="selected")
+
+
+    song = ttk.Entry(window, width=80, font=(saved_font, int(saved_font_size))) # Song entry field
+    song.grid(column=1, row=1)
+
+
+    artist = ttk.Entry(window, width=80, font=(saved_font, int(saved_font_size))) # Artist entry field
+    artist.grid(column=1, row=2)
+    global output
+    output = scrolledtext.ScrolledText(window, width=100, height=20,bg = style.lookup('TLabel', 'background'),fg = style.lookup('TLabel', 'foreground'), font = (saved_font, int(saved_font_size))) # Where the results will be shown.
+    output.grid(column=0, row=4, columnspan=3)
+    
+
+
+splash.after(3000, splashfade)
+mainloop()
 logger.log("Session closed.\n")
