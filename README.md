@@ -14,4 +14,4 @@ If you are running the code, not the executable, then you will need the followin
 
 Feel free to fork this repository and add things.  Or submit a feature request and I'll try my best to add it.
 
-~Fred
+~Logan
