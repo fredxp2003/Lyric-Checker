@@ -1,5 +1,6 @@
 from tkinter import * 
 from tkinter import scrolledtext, filedialog, messagebox, ttk, font
+from turtle import title
 from ttkthemes import ThemedTk, ThemedStyle
 import webbrowser
 import lyricsgenius
@@ -11,7 +12,13 @@ from spotipy.oauth2 import SpotifyClientCredentials
 import spotipy
 from PIL import ImageTk, Image
 from configparser import ConfigParser
-import threading
+import threading # 1.3
+
+# Local Files
+import version_check # Checks current version
+import excel_convert as ex # Allows to convert excel files to .csv files
+import logger # Creates logs under lyricchecker.log
+import cleaner # For the Spotify function.  Cleans up song names and extracts the URI from the URL
 
 
 ### THE SPLASH SCREEN
@@ -25,6 +32,7 @@ splash.overrideredirect(True)
 splash.eval('tk::PlaceWindow . center') # Starts splash screen in the middle of the monitor.
 splash.update_idletasks()
 
+
 def splashfade():
     '''Adds a really nice fade out effect to the window.'''
     alpha = splash.attributes("-alpha")
@@ -36,12 +44,6 @@ def splashfade():
         splash.destroy()
         main_window()
 
-
-# Local Files
-import version_check # Checks current version
-import excel_convert as ex # Allows to convert excel files to .csv files
-import logger # Creates logs under lyricchecker.log
-import cleaner # For the Spotify function.  Cleans up song names and extracts the URI from the URL
 
 # Read config file
 parser = ConfigParser()
@@ -60,30 +62,34 @@ def resource_path(relative_path):  # Idk, auto-py-to-exe told me to put this her
 
     return os.path.join(base_path, relative_path)
 
-
-response = requests.get("https://raw.githubusercontent.com/RobertJGabriel/Google-profanity-words/master/list.txt")
+response = requests.get("http://www.bannedwordlist.com/lists/swearWords.txt")
 BAD_WORDS = response.text.splitlines()
-BAD_WORDS.remove("nob")
-BAD_WORDS.remove("spac")
-BAD_WORDS.remove("turd")
-BAD_WORDS = [w.replace("ass", " ass") for w in BAD_WORDS]
-BAD_WORDS = [w.replace("cum", " cum") for w in BAD_WORDS]
-BAD_WORDS = [w.replace("cums", " cums") for w in BAD_WORDS]
 
+with open("remove.txt", "r") as remove:
+    REMOVE = remove.read().splitlines()
+    for word in REMOVE:
+        BAD_WORDS.remove(word)
+    remove.close()
 
-token = "" # Genius API token
-CLIENT_ID = '' # Spotify API ID
-CLIENT_SECRET = '' # Spotify API Secret
+with open("add.txt", "r") as add:
+    ADD = add.read().splitlines()
+    for word in ADD:
+        BAD_WORDS.append(word)
+    add.close()
+
+token = "UL_un5hpVVp5dEkYXq2ovuoEjumaXfGo-mo_Cf8P0GxOgB7aOJoqnR5oSgxkZK6e" # Genius API token
+CLIENT_ID = '1a29255fe7934b9b991cb401266da24f' # Spotify API ID
+CLIENT_SECRET = '2bd6d203b27c4b45a1105533255e940f' # Spotify API Secret
 
 numbers = string.digits
-
+percent = IntVar
 genius = lyricsgenius.Genius(token)
 
 def about(event = None):
     '''
     Opens a small messagebox with some information
     '''
-    messagebox.showinfo(title="About Lyric Checker", message="Version: 1.2-beta\nNOT A STABLE RELEASE\nCreated by Fredxp2003 on Github\n\nFor help, click the help menu option, or go to https://fredxp2003.github.io")
+    messagebox.showinfo(title="About Lyric Checker", message="Version: 1.2\nCreated by Fredxp2003 on Github\n\nFor help, click the help menu option, or go to https://fredxp2003.github.io")
 
 def help(event = None):
     '''
@@ -107,6 +113,10 @@ def censor(word):
     except:
         pass
     finally:
+        if word[0] == "n" and word[4] == "a":
+            word = "n***a"
+        elif word[0] == "n" and word[5] == "r":
+            word = "n****r"
         output.insert(INSERT, f"CONTAINS: \"{word}\".\n\n")
 
 
@@ -123,7 +133,7 @@ def file_open(event = None):
     text_file.close()
 
 def file_save(event = None):
-    f = filedialog.asksaveasfile(title = "Select file",filetypes = (("Text files","*.txt"), ("All files", "*.*")))
+    f = filedialog.asksaveasfile(title = "Select file",filetypes = (("Text files","*.txt"), ("All files", "*.*")),  initialfile = "lyrics.txt")
 
     if f is None: # asksaveasfile return `None` if dialog closed with "cancel".
         return
@@ -137,6 +147,9 @@ def file_save(event = None):
     f.close() # `()` was missing.
     logger.log("File saved.")
 
+def group_check_thread(event = None):
+    threading.Thread(target=group_check).start()
+
 def group_check(event = None):
     bad_songs = []
     excel = False
@@ -149,7 +162,11 @@ def group_check(event = None):
 
     name = os.path.basename(text_file.name)
     path = os.path.realpath(text_file.name)
-    
+    x = text_file.read()
+    count = len(x.splitlines())
+    print(x)
+    progress['value'] = 0
+    text_file.seek(0)
 
     if text_file is None:
         return
@@ -171,6 +188,7 @@ def group_check(event = None):
             separator = "-"
             if ".csv" in name:
                 separator = ","
+            global title
             title, artist = line.split(separator)
             artist = artist.replace("\n", "")
             if artist == "":
@@ -185,6 +203,10 @@ def group_check(event = None):
                         if var.get() == 1:
                             censor(word)
                         else:
+                            if word[0] == "n" and word[4] == "a":
+                                word = "n***a"
+                            elif word[0] == "n" and word[5] == "r":
+                                word = "n****r"
                             output.insert(INSERT, f"CONTAINS: \"{word}\".\n\n")
                             #output.insert(INSERT, f"[{search.full_title}]\n\n")
                             #output.insert(INSERT, f"{lyrics}\n--------------------------------------\n")
@@ -199,6 +221,8 @@ def group_check(event = None):
                 output.insert(INSERT, f"{lyrics}\n--------------------------------------\n")
             else:
                 output.insert(INSERT, f"No results found for {title} - {artist}\n--------------------------------------\n")
+            
+            progress['value'] += 100/count
             window.update_idletasks()
 
         else:
@@ -242,6 +266,7 @@ def group_check(event = None):
                     output.insert(INSERT, f"No results found. for {title} - {artist}")
                 
             output.insert(INSERT, f"{lyrics}\n\n")
+            progress['value'] = 100
             window.update_idletasks()
 
             messagebox.showinfo(title="Complete", message="Lyrics found.")
@@ -253,7 +278,8 @@ def group_check(event = None):
                 os.remove(name)
             break     
 
-def profanity_check():
+def profanity_check(event = None):
+
     output.delete(1.0,END)
     clean = True
 
@@ -264,6 +290,7 @@ def profanity_check():
         output.insert(INSERT, "Title cannot be left blank.")
     else:
         search = genius.search_song(TITLE, ARTIST)
+        logger.log(f"Searching for {TITLE} - {ARTIST}")
         if search != None:
             lyrics = search.lyrics
             for word in BAD_WORDS:
@@ -271,6 +298,10 @@ def profanity_check():
                     if var.get() == 1:
                         censor(word)
                     else:
+                        if word[0] == "n" and word[4] == "a":
+                            word = "n***a"
+                        elif word[0] == "n" and word[5] == "r":
+                            word = "n****r"
                         output.insert(INSERT, f"CONTAINS: \"{word}\".\n\n")
                     clean = False
             if clean == True:
@@ -323,10 +354,11 @@ def spotify(uri):
     '''
     uri = cleaner.url_cleanup(uri)
     spwindow.destroy()
+    spwindow.update_idletasks()
     auth_manager = SpotifyClientCredentials(client_id=CLIENT_ID, client_secret=CLIENT_SECRET)
     sp = spotipy.Spotify(auth_manager=auth_manager)
 
-
+    logger.log(f'Searching for playlist {uri}.')
 
     results = sp.playlist(uri)
     f = open("output.txt", "w")
@@ -340,56 +372,29 @@ def spotify(uri):
 
         f.write(f"{song} - {item['track']['artists'][0]['name']}\n")
     f.close()
-    sp_profanity_check()
+    threading.Thread(target=sp_profanity_check).start()
 
 def sp_profanity_check():
-    
+    progress['value'] += 0
     bad_songs = []
     text_file = open("output.txt", "r")
+    count = len(text_file.read().splitlines())
+    text_file.seek(0)
     name = os.path.basename(text_file.name)
     if text_file is None:
         return
     run = True
     output.delete("1.0", END)
     while run is True:
-        line = text_file.readline()
-        print(line)
-        clean = True
-        if "\n" in line:
-            title, artist = line.split("-")
-            print(f"{title} - {artist}")
-            search = genius.search_song(title, artist)
-            if search != None:
-                lyrics = search.lyrics
-                for word in BAD_WORDS:
-                    if word in lyrics.lower():
-                        if var.get() == 1:
-                            censor(word)
-                        else:
-                            output.insert(INSERT, f"CONTAINS: \"{word}\".\n\n")
-                        clean = False
-                        if f'{title} - {artist}' not in bad_songs:
-                            bad_songs.append(f'{title} - {artist}')
-                if clean == True:
-                    output.insert(INSERT, f"[{search.full_title}]  |  ")
-                    output.insert(INSERT, "THIS SONG IS CLEAN!\n\n")
-            else:
-                output.insert(INSERT, f"No results found. for {title} - {artist}")
-            output.insert(INSERT, f"[{search.full_title}]\n\n")
-            output.insert(INSERT, f"{lyrics}\n--------------------------------------\n")
-
-        else:
-            if line == "":
-                messagebox.showinfo(title="Complete", message="Lyrics found.")
-                if len(bad_songs) > 0:
-                    messagebox.showwarning(title="Uh oh...", message=f"{len(bad_songs)} songs(s) contain profanity.\n{bad_songs}")   
-                break
-                
-            else:
-                run = False
-                separator = "-"
-                title, artist = line.split(separator)
+        try:
+            line = text_file.readline()
+            print(line)
+            clean = True
+            if "\n" in line:
+                title, artist = line.split("-")
                 print(f"{title} - {artist}")
+                artist.replace("\n","")
+                logger.log(f'Searching for {title} - {artist}')
                 search = genius.search_song(title, artist)
                 if search != None:
                     lyrics = search.lyrics
@@ -399,7 +404,6 @@ def sp_profanity_check():
                                 censor(word)
                             else:
                                 output.insert(INSERT, f"CONTAINS: \"{word}\".\n\n")
-                            
                             clean = False
                             if f'{title} - {artist}' not in bad_songs:
                                 bad_songs.append(f'{title} - {artist}')
@@ -408,17 +412,57 @@ def sp_profanity_check():
                         output.insert(INSERT, "THIS SONG IS CLEAN!\n\n")
                 else:
                     output.insert(INSERT, f"No results found. for {title} - {artist}")
-            if len(bad_songs) > 0:
-                messagebox.showwarning(title="Uh oh...", message=f"{len(bad_songs)} songs(s) are bad.\n{bad_songs}")
-            
-            spwindow.quit()
-            break     
+                output.insert(INSERT, f"[{search.full_title}]\n\n")
+                output.insert(INSERT, f"{lyrics}\n--------------------------------------\n")
+                progress['value'] += 100/count
+                window.update_idletasks()
+
+            else:
+                if line == "":
+                    messagebox.showinfo(title="Complete", message="Lyrics found.")
+                    if len(bad_songs) > 0:
+                        messagebox.showwarning(title="Uh oh...", message=f"{len(bad_songs)} songs(s) contain profanity.\n{bad_songs}")   
+                        messagebox.showwarning(title="Uh oh...", message=f"{len(bad_songs)} songs(s) contain profanity.\n{bad_songs}")   
+                        messagebox.showwarning(title="Uh oh...", message=f"{len(bad_songs)} songs(s) contain profanity.\n{bad_songs}")   
+                        break
+                    
+                else:
+                    run = False
+                    separator = "-"
+                    title, artist = line.split(separator)
+                    print(f"{title} - {artist}")
+                    search = genius.search_song(title, artist)
+                    if search != None:
+                        lyrics = search.lyrics
+                        for word in BAD_WORDS:
+                            if word in lyrics.lower():
+                                if var.get() == 1:
+                                    censor(word)
+                                else:
+                                    output.insert(INSERT, f"CONTAINS: \"{word}\".\n\n")
+                                
+                                clean = False
+                                if f'{title} - {artist}' not in bad_songs:
+                                    bad_songs.append(f'{title} - {artist}')
+                        if clean == True:
+                            output.insert(INSERT, f"[{search.full_title}]  |  ")
+                            output.insert(INSERT, "THIS SONG IS CLEAN!\n\n")
+                    else:
+                        output.insert(INSERT, f"No results found. for {title} - {artist}")
+                if len(bad_songs) > 0:
+                    messagebox.showwarning(title="Uh oh...", message=f"{len(bad_songs)} songs(s) are bad.\n{bad_songs}")
+                progress['value'] = 100
+                window.update_idletasks()
+                spwindow.quit()
+                break    
+        except Exception as e:
+            logger.log(e, 2)
 
 def preferences(entry=None):
     '''Allows the user to change some settings.'''
     # PREFERENCE WINDOW SETUP
     pwindow = Tk()
-    pwindow.title("Preferences | Lyric Checker v1.2-beta")
+    pwindow.title("Preferences | Lyric Checker v1.2")
     style = ThemedStyle(pwindow) 
     style.theme_use(theme)
     bg = style.lookup('TLabel', 'background')
@@ -484,7 +528,6 @@ def fade_away():
 
 
 
-
 def main_window():
     #TKINTER SETUP
     global window
@@ -493,12 +536,14 @@ def main_window():
     global var
     global censor_bool
     global theme
+    global progress
     window = Tk()
     style = ThemedStyle(window)
     theme = saved_theme
     style.theme_use(theme)  
 
-    window.title("Lyric Checker | v1.2-beta")
+
+    window.title("Lyric Checker | v1.2")
     window.iconbitmap("lyric checker.ico")
     my_menu = Menu(window)
     window.config(menu=my_menu)
@@ -507,6 +552,10 @@ def main_window():
     window.configure(bg=bg)
     window.resizable(0, 0)
     window.protocol("WM_DELETE_WINDOW", quit)
+    screen_width = window.winfo_screenwidth()
+    screen_height = window.winfo_screenheight()
+
+
 
 
     #MENUS
@@ -556,15 +605,17 @@ def main_window():
     song = ttk.Entry(window, width=80, font=(saved_font, int(saved_font_size))) # Song entry field
     song.grid(column=1, row=1)
 
+    progress = ttk.Progressbar(window, length=70*int(saved_font_size))
+    progress.grid(column=0, row=4, columnspan=3, pady=10)
 
     artist = ttk.Entry(window, width=80, font=(saved_font, int(saved_font_size))) # Artist entry field
     artist.grid(column=1, row=2)
     global output
     output = scrolledtext.ScrolledText(window, width=100, height=20,bg = style.lookup('TLabel', 'background'),fg = style.lookup('TLabel', 'foreground'), font = (saved_font, int(saved_font_size))) # Where the results will be shown.
-    output.grid(column=0, row=4, columnspan=3)
-    
+    output.grid(column=0, row=5, columnspan=3)
 
-
-splash.after(3000, splashfade)
+def splashAfter():
+    splash.after(3000, splashfade)
+threading.Thread(target=splashAfter).start()
 mainloop()
 logger.log("Session closed.\n")

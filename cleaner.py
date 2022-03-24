@@ -14,13 +14,20 @@ def cleanup(song):
     song = song.replace("Single Version","")
     song = song.replace("Mono","")
     song = song.replace("-", "")
-    song = song.replace("th ", "")
     song = song.replace("Original Stereo Version", "")
     song = song.replace("Stereo Version", "")
     song = song.replace("Version", "")
     song = song.replace("Extended", "")
     song = song.replace("Anniversary", "")
     song = song.replace("Edition", "")
+    song = song.replace("Deluxe", "")
+    song = song.replace("Special", "")
+    song = song.replace("Limited", "")
+    song = song.replace("/", "")
+    song = song.replace(" th ", "")
+    song = song.replace(" nd ", "")
+    song = song.replace(" rd ", "")
+    song = song.replace(" st ", "")
 
     
 

@@ -4,6 +4,7 @@ from urllib.request import Request, urlopen
 from tkinter import messagebox
 from tkinter import *
 import logger
+import threading
 
 logger.log("Session open.")
 
@@ -42,4 +43,4 @@ def vercheck():
         window = Tk()
         window.quit()
 
-vercheck()
+threading.Thread(target=vercheck()).start()
