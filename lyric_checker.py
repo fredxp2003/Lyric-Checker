@@ -1,6 +1,5 @@
 from tkinter import * 
 from tkinter import scrolledtext, filedialog, messagebox, ttk, font
-from turtle import title
 from ttkthemes import ThemedTk, ThemedStyle
 import webbrowser
 import lyricsgenius
@@ -20,11 +19,11 @@ import excel_convert as ex # Allows to convert excel files to .csv files
 import logger # Creates logs under lyricchecker.log
 import cleaner # For the Spotify function.  Cleans up song names and extracts the URI from the URL
 
-
+icon = "lyric_checker.ico"
 ### THE SPLASH SCREEN
 splash = Tk()
 splash.geometry = "550x300"
-splash.iconbitmap = "lyric checker.ico"
+splash.iconbitmap = icon
 img = ImageTk.PhotoImage(Image.open("splash.jpg"))
 splash_screen = Label(splash, image=img)
 splash_screen.grid()
@@ -544,7 +543,7 @@ def main_window():
 
 
     window.title("Lyric Checker | v1.2")
-    window.iconbitmap("lyric checker.ico")
+    window.iconbitmap(icon)
     my_menu = Menu(window)
     window.config(menu=my_menu)
     bg = style.lookup('TLabel', 'background')
