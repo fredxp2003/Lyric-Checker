@@ -578,6 +578,7 @@ def main_window():
     window.bind("<Control-g>", group_check)
     window.bind("<Control-h>", help)
     window.bind("<Control-.>", preferences)
+    window.bind('<Return>', lambda event: profanity_check())
         
     #LABELS
     song_label = ttk.Label(window, text='Song:', font=(saved_font, int(saved_font_size)))
