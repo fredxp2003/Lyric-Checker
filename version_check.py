@@ -25,18 +25,17 @@ def vercheck():
     verSection = wbst.find("p")
     verString = verSection.text
     ver = verString.replace("Current Version: ","")
-    ver = float(ver)
     logger.log(f"Current version {ver}")
 
     f = open("ver.txt", "r")
     logger.log("Checking local version...")
     currentStr = f.read()
-    current = float(currentStr)
+    current = str(currentStr)
 
     if ver == current:
         print("same")
         logger.log(f"Program is up to date.  Version = {ver}")
-    elif ver > current:
+    elif ver != current:
         print("Needs updates")
         logger.log(f"Program is not up to date.  Version = {ver}.  Newest version = {current}", 2)
         messagebox.showwarning(title="Updates Needed", message=f"Lyric Checker is out of date.\nYour current version is {current}.  Please update to {ver} to keep compatibility.  Updates can be found at https://fredxp2003.github.io/download.")

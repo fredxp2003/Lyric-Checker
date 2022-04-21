@@ -1,5 +1,7 @@
 from tkinter import * 
 from tkinter import scrolledtext, filedialog, messagebox, ttk, font
+from tkinter.tix import ListNoteBook
+from sqlalchemy import false
 from ttkthemes import ThemedTk, ThemedStyle
 import webbrowser
 import lyricsgenius
@@ -18,6 +20,7 @@ import version_check # Checks current version
 import excel_convert as ex # Allows to convert excel files to .csv files
 import logger # Creates logs under lyricchecker.log
 import cleaner # For the Spotify function.  Cleans up song names and extracts the URI from the URL
+import addOrRemove as aor
 
 icon = "lyric_checker.ico"
 ### THE SPLASH SCREEN
@@ -88,7 +91,7 @@ def about(event = None):
     '''
     Opens a small messagebox with some information
     '''
-    messagebox.showinfo(title="About Lyric Checker", message="Version: 1.2\nCreated by Fredxp2003 on Github\n\nFor help, click the help menu option, or go to https://fredxp2003.github.io")
+    messagebox.showinfo(title="About Lyric Checker", message="Version: 2.0\nCreated by Fredxp2003 on Github\n\nFor help, click the help menu option, or go to https://fredxp2003.github.io")
 
 def help(event = None):
     '''
@@ -252,7 +255,13 @@ def group_check(event = None):
                             if var.get() == 1:
 
                                 censor(word)
+                                output.insert(INSERT, f"CONTAINS: \"{word}\".\n\n")
+
                             else:
+                                if word[0] == "n" and word[4] == "a":
+                                    word = "n***a"
+                                elif word[0] == "n" and word[5] == "r":
+                                    word = "n****r"
                                 output.insert(INSERT, f"CONTAINS: \"{word}\".\n\n")
                             
                             clean = False
@@ -317,7 +326,7 @@ def profanity_check(event = None):
 
 def spotify_window(entry=None):
     '''
-    Spotify integration is planned for 1.2 release.
+    Spotify PLAYLIST SEARCH WINDOW
     '''
     global spwindow
     spwindow = Toplevel()
@@ -346,21 +355,81 @@ def spotify_window(entry=None):
 
     spwindow.mainloop()
 
+def spotifyUser(entry=None):
+    global spuwindow
+    global username
+    global results
+    global playlist_dict
+    spuwindow = Toplevel()
+    style = ThemedStyle(spuwindow) 
+    style.theme_use(theme)
+    bg = style.lookup('TLabel', 'background')
+    spuwindow.configure(bg=bg)
+    playlist_dict = {}
+
+    spuwindow.title("Lyric Checker | Spotify")
+
+    img = ImageTk.PhotoImage(Image.open("spotify.png"))
+    canvas = Canvas(spuwindow, width=826, height=250, bg=style.lookup('TLabel', 'background'))
+    canvas.create_image(420, 125, image=img)
+    canvas.grid(column=0, row=0, columnspan=3)
+
+    #LABELS
+    playlist_label = ttk.Label(spuwindow, text='Username:')
+    playlist_label.grid(column=0, row=1)
+
+    username = ttk.Entry(spuwindow, width=80, font=(saved_font, int(saved_font_size)))
+    username.grid(column=1, row=1)
+
+    search = ttk.Button(spuwindow, text="Search",command=lambda: playlist_get(username.get()))
+    search.grid(column=2, row=1)
+
+    results = Listbox(spuwindow, width=100, height=20,bg = style.lookup('TLabel', 'background'),fg = style.lookup('TLabel', 'foreground'), font = (saved_font, int(saved_font_size)), selectmode=SINGLE) # Where the results will be shown.
+    results.grid(column=1, row=2)
+
+    select = ttk.Button(spuwindow, text="Select",command=lambda: spotify(playlist_dict[results.get(results.curselection())]))
+    select.grid(column=2, row=2)
+    spuwindow.mainloop()
+
+def playlist_get(username):
+    spuwindow.update_idletasks()
+    auth_manager = SpotifyClientCredentials(client_id=CLIENT_ID, client_secret=CLIENT_SECRET)
+    sp = spotipy.Spotify(auth_manager=auth_manager)
+
+    logger.log(f'Searching for playlists by {username}.')
+    
+    playlists = sp.user_playlists(username)
+    while playlists:
+        for i, playlist in enumerate(playlists['items']):
+            #print("%4d %s %s" % (i + 1 + playlists['offset'], playlist['uri'],  playlist['name']))
+            playlist_dict[playlist['name']] = playlist['uri'].replace("spotify:playlist:", "")
+            print(f"{playlist['uri']} {playlist['name']}")
+            results.insert(i+1, f"{playlist['name']}")
+        if playlists['next']:
+            playlists = sp.next(playlists)
+        else:
+            playlists = None
+    logger.log(f'Playlists found.')
 
 def spotify(uri):
     '''
-    Spotify integration is planned for 1.2 release.
+    Spotify integration is planned for 2.0 release.
     '''
-    uri = cleaner.url_cleanup(uri)
-    spwindow.destroy()
-    spwindow.update_idletasks()
+    if "http" in uri:
+        uri = cleaner.url_cleanup(uri)
+    try:
+        spwindow.destroy()
+        spwindow.update_idletasks()
+    except Exception as e:
+        spuwindow.destroy()
+        spuwindow.update_idletasks()
     auth_manager = SpotifyClientCredentials(client_id=CLIENT_ID, client_secret=CLIENT_SECRET)
     sp = spotipy.Spotify(auth_manager=auth_manager)
 
     logger.log(f'Searching for playlist {uri}.')
 
     results = sp.playlist(uri)
-    f = open("output.txt", "w")
+    f = open("spotify", "w")
     for item in results['tracks']['items']:
         print(
             item['track']['name'] + ' - ' +
@@ -370,13 +439,14 @@ def spotify(uri):
         song = cleaner.cleanup(song)
 
         f.write(f"{song} - {item['track']['artists'][0]['name']}\n")
+        logger.log(f'Writing to file: {song} - {item["track"]["artists"][0]["name"]}')
     f.close()
     threading.Thread(target=sp_profanity_check).start()
 
 def sp_profanity_check():
     progress['value'] += 0
     bad_songs = []
-    text_file = open("output.txt", "r")
+    text_file = open("spotify", "r")
     count = len(text_file.read().splitlines())
     text_file.seek(0)
     name = os.path.basename(text_file.name)
@@ -420,9 +490,7 @@ def sp_profanity_check():
                 if line == "":
                     messagebox.showinfo(title="Complete", message="Lyrics found.")
                     if len(bad_songs) > 0:
-                        messagebox.showwarning(title="Uh oh...", message=f"{len(bad_songs)} songs(s) contain profanity.\n{bad_songs}")   
-                        messagebox.showwarning(title="Uh oh...", message=f"{len(bad_songs)} songs(s) contain profanity.\n{bad_songs}")   
-                        messagebox.showwarning(title="Uh oh...", message=f"{len(bad_songs)} songs(s) contain profanity.\n{bad_songs}")   
+                        messagebox.showwarning(title="Uh oh...", message=f"{len(bad_songs)} songs(s) contain profanity.\n{bad_songs}")  
                         break
                     
                 else:
@@ -461,7 +529,7 @@ def preferences(entry=None):
     '''Allows the user to change some settings.'''
     # PREFERENCE WINDOW SETUP
     pwindow = Tk()
-    pwindow.title("Preferences | Lyric Checker v1.2")
+    pwindow.title("Preferences | Lyric Checker v2.0")
     style = ThemedStyle(pwindow) 
     style.theme_use(theme)
     bg = style.lookup('TLabel', 'background')
@@ -542,7 +610,7 @@ def main_window():
     style.theme_use(theme)  
 
 
-    window.title("Lyric Checker | v1.2")
+    window.title("Lyric Checker | v2.0")
     window.iconbitmap(icon)
     my_menu = Menu(window)
     window.config(menu=my_menu)
@@ -563,8 +631,16 @@ def main_window():
     file_menu.add_command(label="Open   (CTRL + O)", command=file_open)
     file_menu.add_command(label="Save as   (CTRL + S)", command=file_save)
     file_menu.add_command(label="Group check   (CTRL + G)", command = group_check)
-    file_menu.add_command(label="Search with Spotify", command = spotify_window)
-    
+
+    spotify_sub_menu = Menu(file_menu, tearoff=0)  
+    spotify_sub_menu.add_command(label="Playlist search", command = spotify_window)
+    spotify_sub_menu.add_command(label="User search   (CTRL + SHIFT + S)", command=spotifyUser)
+    file_menu.add_cascade(label="Spotify", menu=spotify_sub_menu)
+
+    #file_menu.add_separator()
+    #file_menu.add_command(label="Add words to lsit", command=aor.add)
+    #file_menu.add_command(label="Remove words from list", command=aor.remove)
+
     file_menu.add_separator()
     file_menu.add_command(label="About", command=about)
     file_menu.add_command(label="Preferences   (CTRL + .)", command=preferences)
@@ -578,6 +654,7 @@ def main_window():
     window.bind("<Control-g>", group_check)
     window.bind("<Control-h>", help)
     window.bind("<Control-.>", preferences)
+    window.bind("<Control-S>", spotifyUser)
     window.bind('<Return>', lambda event: profanity_check())
         
     #LABELS
